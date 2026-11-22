@@ -1,0 +1,5 @@
+# Technical architecture
+
+`dataset.prepare` loads or synthesizes data, makes disjoint stratified splits, fits preprocessing on training only, and constructs reproducible client partitions. `model` implements shared logistic parameters and local gradient descent. `attacks` changes labels or model deltas. `coordinator` orchestrates rounds and calls `trust` for robust norm, median-direction and validation evidence, then sample-weighted or trust-weighted aggregation. `evaluation` computes binary metrics. `app.py` controls execution, shows round-level observations and saves JSON. The same validation set is reused across rounds; the final test set is held out from both training and trust scoring.
+
+The saved result includes settings, per-round metrics, client indicators, final test metrics, parameters, runtime and an estimated parameter-transfer byte count. A configuration-and-upload hash isolates comparisons in a browser session. No distributed processes or actual network clients are simulated.
