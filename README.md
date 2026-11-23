@@ -65,6 +65,26 @@ These values are supported by the three checked-in JSON records in `results/`; t
 
 In the final TrustFed-Sec round, the saved weights for clients 1–5 are 0.0316, 0.0316, 0.3134, 0.3100 and 0.3133 respectively (rounded). Clients 1 and 2 are the simulated compromised clients. The comparison describes one run only; the method does not guarantee similar outcomes on other data or attacks. The files contain no raw training data, but do include model parameters and experiment details. Newly generated JSON records are ignored by Git to avoid accidental publication.
 
+## Multi-seed benchmark
+
+A single run is a demo; the benchmark is the evidence. Run the same three arms across independent seeds:
+
+```bash
+python3 scripts/bench.py --seeds 30 --rounds 10
+```
+
+It writes `results/benchmark_summary.json`. Each seed gets its own split, partition and starting model; all three arms use that same setup. Contrasts are paired by seed and reported with Wilcoxon signed-rank (primary), paired t (secondary), Cohen's d_z, a 95% CI on the paired difference, and Holm correction across the three contrasts. Test-row bootstrap CIs (B=1000 by default) are stored per run. The data is the synthetic demonstration unless `--csv path/to/file.csv ...` is supplied. See `tests/test_bench.py` for the checks.
+
+Checked-in result, 30 seeds × 10 rounds, synthetic sign flip (2 of 5 clients, multiplier 5):
+
+| Arm | Accuracy | FPR | Macro F1 |
+|---|---:|---:|---:|
+| A clean | 0.8094 ± 0.0352 | 0.1359 ± 0.0343 | 0.7954 |
+| B poisoned | 0.2615 ± 0.0352 | 0.7457 ± 0.0491 | 0.2580 |
+| C TrustFed-Sec | 0.7761 ± 0.0383 | 0.1789 ± 0.0427 | 0.7619 |
+
+Paired on seed: C − B is +0.5146 accuracy (95% CI 0.4897 to 0.5395, d_z 7.70, Holm p = 3.5e-6). C − A is −0.0333 accuracy (CI −0.0387 to −0.0279, d_z −2.30) and +0.0430 FPR (CI 0.0321 to 0.0540). The defense recovers most of the damage but does not fully close the gap to clean training, and it raises false alarms. These are synthetic results, not an UNSW-NB15 benchmark.
+
 ## Screenshots
 
 Two real captures from the default synthetic run are in `docs/screenshots/`: the three-arm comparison and the TrustFed-Sec client inspection at round 10. Measured values are in `results/`. See [docs/screenshots/README.md](docs/screenshots/README.md) for the capture settings.
