@@ -29,10 +29,12 @@ from src.dataset import prepare
 from src.model import predict_proba
 from src.coordinator import run
 
-SCENARIOS = ['Normal FedAvg', 'Poisoned FedAvg', 'TrustFed-Sec']
-LABELS = {'Normal FedAvg': 'A_clean', 'Poisoned FedAvg': 'B_poisoned', 'TrustFed-Sec': 'C_trust'}
+SCENARIOS = ['Normal FedAvg', 'Poisoned FedAvg', 'TrustFed-Sec', 'TrustFed-Sec (FPR guard)']
+LABELS = {'Normal FedAvg': 'A_clean', 'Poisoned FedAvg': 'B_poisoned', 'TrustFed-Sec': 'C_trust',
+          'TrustFed-Sec (FPR guard)': 'D_guard'}
 METRICS = ['accuracy', 'false_positive_rate', 'macro_f1', 'attack_recall']
-CONTRASTS = [('B_poisoned', 'A_clean'), ('C_trust', 'B_poisoned'), ('C_trust', 'A_clean')]
+CONTRASTS = [('B_poisoned', 'A_clean'), ('C_trust', 'B_poisoned'), ('C_trust', 'A_clean'),
+             ('D_guard', 'C_trust'), ('D_guard', 'A_clean')]
 
 
 def bootstrap_ci(y_true, y_pred, metric, b=1000, seed=0):
@@ -114,7 +116,7 @@ def bench(seeds=30, rounds=10, attack='sign flip', bootstrap=1000,
             })
         if progress:
             done = seed - seed_offset + 1
-            vals = ' | '.join(f'{LABELS[n]} {next(r for r in rows[-3:] if r["arm"] == LABELS[n])["test"]["accuracy"]:.4f}'
+            vals = ' | '.join(f'{LABELS[n]} {next(r for r in rows[-len(SCENARIOS):] if r["arm"] == LABELS[n])["test"]["accuracy"]:.4f}'
                               for n in SCENARIOS)
             print(f'seed {seed + 1}/{seed_offset + seeds}: {vals}', flush=True)
 

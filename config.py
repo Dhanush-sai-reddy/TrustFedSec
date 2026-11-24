@@ -17,4 +17,5 @@ class Config:
     cosine_threshold: float = 0.2
     validation_threshold: float = 0.02
     trust_floor: float = 0.10
+    fpr_budget: float = 0.02
     max_samples: int = 100000

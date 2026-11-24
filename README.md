@@ -38,6 +38,8 @@ For each round, the norm signal is `abs(log((norm_i + eps)/(median_norm + eps)))
 
 Evidence is `0.25*norm + 0.25*direction + 0.50*validation`; trust is `clip(beta*previous_trust + (1-beta)*evidence, trust_floor, 1)`, initially 1. The aggregation weight is `trust_i * min(n_i, cap)` normalized across clients. A floor softly retains all clients; if weights are invalid or zero, the coordinator falls back to equal weights. Thresholds, beta and floor are adjustable. Indicators are computed for all scenarios, but FedAvg does not use them. The validation component is bounded and cannot dominate by magnitude. A review status flags any threshold crossing and is separate from the trust calculation.
 
+Arm D adds an FPR budget of 0.02 by default. For each client the coordinator computes the validation FPR of `theta + delta_i`, then keeps the largest fraction `alpha_i in [0, 1]` for which that FPR stays within `current_FPR + budget`. It renormalises the surviving weights and, if the combined update still breaches the cap, shrinks the combined step by the same rule. The budget is a limit on the rise in one round, not an absolute FPR target, so an all-zero update is always feasible. This is not a calibrated guarantee: the same validation set is reused every round, an attacker with access to it can evade the cap, and the budget trades attack detection against false alarms.
+
 ## Limitations and future work
 
 Central trusted validation may be unrepresentative, costly or compromised; repeated selection against it risks overfitting. Legitimate non-IID updates may be down-weighted; the median can be manipulated by collusion, and adaptive attackers can evade these signals. The floor does not guarantee robustness; no method guarantees protection. Simulation runs centrally without privacy, secure aggregation, real devices, network transport, adversarial identity verification or verified sample counts. There is no differential privacy or production monitoring. Dense one-hot matrices can consume substantial RAM. The communication estimate excludes transport overhead. Future work: stronger defenses and baselines, validated dataset-specific leakage audits, streaming preprocessing, independent benchmarks across seeds and attack budgets, secure aggregation-compatible approaches, and deployment/security review.
@@ -67,13 +69,13 @@ In the final TrustFed-Sec round, the saved weights for clients 1–5 are 0.0316,
 
 ## Multi-seed benchmark
 
-A single run is a demo; the benchmark is the evidence. Run the same three arms across independent seeds:
+A single run is a demo; the benchmark is the evidence. Run the same four arms across independent seeds:
 
 ```bash
 python3 scripts/bench.py --seeds 30 --rounds 10
 ```
 
-It writes `results/benchmark_summary.json`. Each seed gets its own split, partition and starting model; all three arms use that same setup. Contrasts are paired by seed and reported with Wilcoxon signed-rank (primary), paired t (secondary), Cohen's d_z, a 95% CI on the paired difference, and Holm correction across the three contrasts. Test-row bootstrap CIs (B=1000 by default) are stored per run. The data is the synthetic demonstration unless `--csv path/to/file.csv ...` is supplied. See `tests/test_bench.py` for the checks.
+It writes `results/benchmark_summary.json`. Each seed gets its own split, partition and starting model; all four arms use that same setup. Arm D is arm C with the FPR guard switched on. Contrasts are paired by seed and reported with Wilcoxon signed-rank (primary), paired t (secondary), Cohen's d_z, a 95% CI on the paired difference, and Holm correction across the five contrasts. Test-row bootstrap CIs (B=1000 by default) are stored per run. The data is the synthetic demonstration unless `--csv path/to/file.csv ...` is supplied. See `tests/test_bench.py` and `tests/test_fpr.py` for the checks.
 
 Checked-in result, 30 seeds × 10 rounds, synthetic sign flip (2 of 5 clients, multiplier 5):
 
@@ -82,8 +84,9 @@ Checked-in result, 30 seeds × 10 rounds, synthetic sign flip (2 of 5 clients, m
 | A clean | 0.8094 ± 0.0352 | 0.1359 ± 0.0343 | 0.7954 |
 | B poisoned | 0.2615 ± 0.0352 | 0.7457 ± 0.0491 | 0.2580 |
 | C TrustFed-Sec | 0.7761 ± 0.0383 | 0.1789 ± 0.0427 | 0.7619 |
+| D TrustFed-Sec + FPR guard | 0.7977 ± 0.0342 | 0.1526 ± 0.0388 | 0.7837 |
 
-Paired on seed: C − B is +0.5146 accuracy (95% CI 0.4897 to 0.5395, d_z 7.70, Holm p = 3.5e-6). C − A is −0.0333 accuracy (CI −0.0387 to −0.0279, d_z −2.30) and +0.0430 FPR (CI 0.0321 to 0.0540). The defense recovers most of the damage but does not fully close the gap to clean training, and it raises false alarms. These are synthetic results, not an UNSW-NB15 benchmark.
+Paired by seed: C − B is +0.5146 accuracy (95% CI 0.4897 to 0.5395, d_z 7.70, Holm p = 6.9e-6); D − C is +0.0216 accuracy (CI 0.0171 to 0.0261, d_z 1.79) and −0.0263 FPR (CI −0.0332 to −0.0194). The guard narrows the remaining gap: D − A is −0.0118 accuracy (CI −0.0153 to −0.0083, d_z −1.26) and +0.0167 FPR (CI 0.0100 to 0.0235). It still does not match clean training, and it raises false alarms. These are synthetic results, not an UNSW-NB15 benchmark.
 
 ## Screenshots
 

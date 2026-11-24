@@ -33,8 +33,8 @@ def test_bench_smoke(tmp_path):
 
     out = tmp_path / 'summary.json'
     s = bench(seeds=2, rounds=2, bootstrap=50, out=out, progress=False)
-    assert len(s['runs']) == 6
-    assert set(s['means']) == {'A_clean', 'B_poisoned', 'C_trust'}
+    assert len(s['runs']) == 8
+    assert set(s['means']) == {'A_clean', 'B_poisoned', 'C_trust', 'D_guard'}
     assert all(c['holm_p'] is None or 0 <= c['holm_p'] <= 1
                for items in s['contrasts'].values() for c in items)
     assert out.exists()
