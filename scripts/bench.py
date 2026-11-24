@@ -95,11 +95,11 @@ def contrast(rows, first, second, metric):
 
 
 def bench(seeds=30, rounds=10, attack='sign flip', bootstrap=1000,
-          seed_offset=0, csv=None, out=None, progress=True):
+          seed_offset=0, csv=None, out=None, progress=True, max_rows=None):
     started = time.perf_counter()
     rows = []
     for seed in range(seed_offset, seed_offset + seeds):
-        cfg = Config(seed=seed, rounds=rounds, attack=attack)
+        cfg = Config(seed=seed, rounds=rounds, attack=attack, max_rows=max_rows)
         data = prepare(cfg, csv)
         for name in SCENARIOS:
             result = run(data, cfg, name)
@@ -145,6 +145,7 @@ def bench(seeds=30, rounds=10, attack='sign flip', bootstrap=1000,
             'clients_by_default': Config().clients,
             'partition': Config().partition,
             'source': 'user-supplied CSV' if csv else 'synthetic demonstration data',
+            'max_rows': max_rows,
             'bootstrap_samples': bootstrap,
             'paired_by_seed': True,
         },
@@ -178,13 +179,15 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--seeds', type=int, default=30)
     ap.add_argument('--rounds', type=int, default=10)
-    ap.add_argument('--attack', default='sign flip', choices=['sign flip', 'label flip'])
+    ap.add_argument('--attack', default='sign flip',
+                    choices=['sign flip', 'label flip', 'constrain and scale', 'cosine adaptive'])
     ap.add_argument('--bootstrap', type=int, default=1000)
     ap.add_argument('--seed-offset', type=int, default=0)
     ap.add_argument('--csv', nargs='*', default=None)
+    ap.add_argument('--max-rows', type=int, default=None)
     ap.add_argument('--out', default=None)
     a = ap.parse_args()
-    bench(a.seeds, a.rounds, a.attack, a.bootstrap, a.seed_offset, a.csv, a.out)
+    bench(a.seeds, a.rounds, a.attack, a.bootstrap, a.seed_offset, a.csv, a.out, max_rows=a.max_rows)
 
 
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ class Config:
     attack: str = 'sign flip'
     strength: float = 5.0
     poison_fraction: float = 0.5
+    adaptive_fraction: float = 0.05
     rounds: int = 10
     partition: str = 'IID'
     epochs: int = 3
@@ -19,3 +20,4 @@ class Config:
     trust_floor: float = 0.10
     fpr_budget: float = 0.02
     max_samples: int = 100000
+    max_rows: int | None = None

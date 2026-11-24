@@ -2,7 +2,7 @@ import time
 import numpy as np
 from dataclasses import asdict
 from src.model import train
-from src.attacks import flip_labels, manipulate
+from src.attacks import flip_labels, manipulate, constrain_and_scale, harm_direction, cosine_adaptive
 from src.trust import indicators, score, weights_for, fpr_budget_weights
 from src.evaluation import evaluate
 
@@ -17,13 +17,29 @@ def run(data, cfg, scenario, callback=None):
     malicious = set(range(cfg.compromised)) if scenario != 'Normal FedAvg' else set()
     start = time.perf_counter()
     for r in range(cfg.rounds):
-        updates=[]; counts=[]
+        updates=[None]*cfg.clients
+        counts=[len(ids) for ids in data['parts']]
         for i, ids in enumerate(data['parts']):
+            if i in malicious and cfg.attack == 'cosine adaptive':
+                continue  # crafted below, after the honest updates are known
             y = data['y_train'][ids]
-            if i in malicious and cfg.attack == 'label flip': y = flip_labels(y, cfg.poison_fraction, np.random.default_rng(np.random.SeedSequence([cfg.seed, r, i, 731])))
+            if i in malicious and cfg.attack in ('label flip', 'constrain and scale'):
+                y = flip_labels(y, cfg.poison_fraction, np.random.default_rng(np.random.SeedSequence([cfg.seed, r, i, 731])))
             update = train(data['X_train'][ids], y, theta, cfg.epochs, cfg.learning_rate)-theta
             if i in malicious and cfg.attack == 'sign flip': update = manipulate(update, cfg.strength)
-            updates.append(update); counts.append(len(ids))
+            if i in malicious and cfg.attack == 'constrain and scale': update = constrain_and_scale(update, cfg.strength)
+            updates[i] = update
+        if malicious and cfg.attack == 'cosine adaptive':
+            honest = [updates[i] for i in range(cfg.clients) if i not in malicious and updates[i] is not None]
+            if honest:
+                reference = np.median(np.stack(honest), axis=0)
+                crafted = cosine_adaptive(reference, harm_direction(theta, data['X_val'], data['y_val']), cfg.adaptive_fraction)
+                for i in malicious:
+                    updates[i] = crafted.copy()
+            else:
+                for i in malicious:
+                    ids = data['parts'][i]
+                    updates[i] = train(data['X_train'][ids], data['y_train'][ids], theta, cfg.epochs, cfg.learning_rate) - theta
         norms, cos, dev = indicators(updates); baseline = evaluate(data['X_val'], data['y_val'], theta)['loss']; rows=[]
         for i, update in enumerate(updates):
             candidate = evaluate(data['X_val'], data['y_val'], theta+update); delta = candidate['loss']-baseline

@@ -61,7 +61,7 @@ with st.sidebar:
     n = st.slider('Clients', 2, 10, 5)
     bad = st.slider('Compromised clients', 0, n, min(2,n))
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
-    attack = st.selectbox('Attack type', ['sign flip', 'label flip'])
+    attack = st.selectbox('Attack type', ['sign flip', 'label flip', 'constrain and scale', 'cosine adaptive'])
     strength = st.slider('Sign-flip multiplier', 0.0, 15.0, 5.0, 0.5)
     fraction = st.slider('Label poisoning fraction', 0.0, 1.0, 0.5, 0.05)
     rounds = st.slider('Communication rounds', 1, 30, 10)
@@ -74,6 +74,7 @@ with st.sidebar:
         val = st.slider('Validation loss threshold', 0.005, 0.2, 0.02, 0.005, format='%.3f')
         floor = st.slider('Minimum trust weight', 0.01, 0.5, 0.1, 0.01)
         budget = st.slider('Max FPR rise per round (guard arm)', 0.0, 0.10, 0.02, 0.005)
+        adaptive = st.slider('Adaptive attack harmful fraction', 0.0, 0.30, 0.05, 0.01)
     if st.button('Reset results', use_container_width=True):
         st.session_state.pop('results', None); st.rerun()
 
@@ -81,7 +82,7 @@ dataset_tag = 'SYNTHETIC DATA' if not dataset.startswith('Local') else 'USER-SUP
 st.markdown(f'''<div class="brand"><div class="mark">TF</div><div><div class="brand-name">TrustFed-Sec</div><div class="brand-sub">Federated intrusion detection · local simulation</div></div><div class="pill">{dataset_tag}</div></div>''', unsafe_allow_html=True)
 st.markdown('<div class="note">Five clients train the same logistic model. One or two send poisoned updates. The coordinator looks at each update, checks it against a clean validation set, and changes how much that client counts. This does not monitor real traffic.</div>', unsafe_allow_html=True)
 
-cfg = Config(seed=int(seed),clients=n,compromised=bad,attack=attack,strength=strength,poison_fraction=fraction,rounds=rounds,partition=partition,beta=beta,norm_threshold=norm,cosine_threshold=cosine,validation_threshold=val,trust_floor=floor,fpr_budget=budget)
+cfg = Config(seed=int(seed),clients=n,compromised=bad,attack=attack,strength=strength,poison_fraction=fraction,rounds=rounds,partition=partition,beta=beta,norm_threshold=norm,cosine_threshold=cosine,validation_threshold=val,trust_floor=floor,fpr_budget=budget,adaptive_fraction=adaptive)
 file_data = [(f.name, f.getvalue()) for f in files]
 key = hashlib.sha256((repr(cfg)+dataset).encode()+b''.join(name.encode()+content for name,content in file_data)).hexdigest()
 if 'results' not in st.session_state: st.session_state.results = {}

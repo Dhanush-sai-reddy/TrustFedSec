@@ -28,7 +28,9 @@ A stratified 70/15/15 split creates training, trusted validation and held-out te
 
 ## Method
 
-Each client receives the same parameters and performs full-batch gradient descent on binary logistic cross-entropy. FedAvg weights client parameter deltas by their sample counts. Sign flipping multiplies an update by the negative attack multiplier; label flipping changes a selected fraction of local labels before training. The coordinator adds the weighted mean delta to the current model, equivalent to averaging client parameters.
+Each client receives the same parameters and performs full-batch gradient descent on binary logistic cross-entropy. FedAvg weights client parameter deltas by their sample counts. The coordinator adds the weighted mean delta to the current model, equivalent to averaging client parameters.
+
+Four attacks are available. Sign flipping multiplies the update by a negative multiplier. Label flipping changes a selected fraction of local labels before training. Constrain-and-scale trains on flipped labels and submits a magnified update. Cosine adaptive skips local training: it takes the median of the honest updates in that round, adds a small component that increases validation loss, then rescales to the honest median's norm. That last attacker sees both the honest updates and the validation set, so it is deliberately stronger than a realistic one.
 
 For each round, the norm signal is `abs(log((norm_i + eps)/(median_norm + eps)))`; direction is cosine similarity to the coordinate-wise median update, with zero vectors handled explicitly. Validation impact is candidate loss minus current global validation loss. The bounded quality components are:
 
@@ -87,6 +89,26 @@ Checked-in result, 30 seeds × 10 rounds, synthetic sign flip (2 of 5 clients, m
 | D TrustFed-Sec + FPR guard | 0.7977 ± 0.0342 | 0.1526 ± 0.0388 | 0.7837 |
 
 Paired by seed: C − B is +0.5146 accuracy (95% CI 0.4897 to 0.5395, d_z 7.70, Holm p = 6.9e-6); D − C is +0.0216 accuracy (CI 0.0171 to 0.0261, d_z 1.79) and −0.0263 FPR (CI −0.0332 to −0.0194). The guard narrows the remaining gap: D − A is −0.0118 accuracy (CI −0.0153 to −0.0083, d_z −1.26) and +0.0167 FPR (CI 0.0100 to 0.0235). It still does not match clean training, and it raises false alarms. These are synthetic results, not an UNSW-NB15 benchmark.
+
+### Other attacks
+
+Two further 30-seed sweeps use the same four arms (`results/bench_constrain.json`, `results/bench_adaptive.json`). Both are negative results:
+
+- Constrain-and-scale: clean 0.8094 accuracy, poisoned 0.8071, TrustFed-Sec 0.8106. B − A = −0.0023 (Holm p = 1.0). The attack barely moves this model, so there is nothing for the defense to recover.
+- Cosine adaptive: poisoned 0.8071, TrustFed-Sec 0.8071, D − C = 0.0000 (Holm p = 1.0). With a 5% harmful component and full knowledge of the honest updates and validation set, the crafted update is effectively invisible — and also effectively harmless. A stronger adaptive attacker is still needed before claiming robustness against one.
+
+### UNSW-NB15 sample
+
+A 30-seed sweep on 12,000 rows sampled from third-party mirror CSVs (`results/bench_unsw.json`; see [docs/DATA.md](docs/DATA.md)). The same sign-flip attack, four arms, 10 rounds:
+
+| Arm | Accuracy | FPR | Macro F1 |
+|---|---:|---:|---:|
+| A clean | 0.8201 ± 0.0127 | 0.3320 ± 0.0197 | 0.7967 |
+| B poisoned | 0.2661 ± 0.0129 | 0.8742 ± 0.0214 | 0.2427 |
+| C TrustFed-Sec | 0.7933 ± 0.0151 | 0.2874 ± 0.0410 | 0.7754 |
+| D + FPR guard | 0.7573 ± 0.0161 | 0.1777 ± 0.0506 | 0.7501 |
+
+C − B = +0.5272 accuracy (CI 0.5190 to 0.5355, d_z 23.89, Holm p = 8.6e-6). D − C = −0.0360 accuracy and −0.1097 FPR, both significant. On real traffic the guard buys a large FPR reduction at a measurable accuracy cost, and the baseline FPR is already 0.33. This is a sampled, mirrored dataset with no verified provenance — not a benchmark claim.
 
 ## Screenshots
 
